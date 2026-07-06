@@ -1,0 +1,4 @@
+interface:
+  display_name: "Darktide dt-cli"
+  short_description: "Run Darktide Lua via LuaExec"
+  default_prompt: "Use $darktide-dt-cli to run a focused Lua query against the running Darktide game."
