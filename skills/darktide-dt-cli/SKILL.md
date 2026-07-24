@@ -1,11 +1,11 @@
 ---
 name: darktide-dt-cli
-description: Use the Darktide dt-cli tool shipped with the LuaExec mod to execute Lua in a running Warhammer 40,000: Darktide game, stream mod-visible logs, check the tool version, diagnose LuaExec pipe availability, or interpret dt-cli exec/logs outputs.
+description: Execute Lua code in a running Warhammer 40,000: Darktide game or read its logs with the dt-cli tool shipped with LuaExec. Use when the user asks to inspect or change live game state through Lua, retrieve recent logs, or follow new logs in real time.
 ---
 
 # Darktide dt-cli
 
-`dt-cli` is an external command-line client for the `LuaExec` Darktide mod. It connects to the running game through the local LuaExec named pipe and can execute Lua code or stream logs captured by the mod.
+`dt-cli` is an external command-line client for the `LuaExec` Darktide mod. It can execute Lua code and read game logs.
 
 ## Locate The Executable
 
@@ -39,13 +39,7 @@ Before using game-connected commands:
 
 If an environment sandbox returns access denied for the named pipe, rerun the same command outside that sandbox or with the required approval. Do not treat sandbox access denial as proof that the game or mod is broken.
 
-## Commands
-
-Print the tool version:
-
-```powershell
-& $dtcli version
-```
+## Execute Lua
 
 Execute one line of Lua in the game:
 
@@ -61,42 +55,54 @@ return Managers and type(Managers)
 '@ | & $dtcli exec --stdin
 ```
 
-Stream new logs captured after the command starts:
-
-```powershell
-& $dtcli logs
-```
-
-`logs` is a long-running command. Stop it with the user's requested process-control method, such as Ctrl+C in an interactive shell or an explicit process stop in automation.
-
-## Output Semantics
-
 `exec` prints JSON to stdout. Always parse `ok` and `error` before trusting the result:
 
 ```json
 {"ok":true,"output":"1","result":{"count":1,"values":[{"type":"number","value":1}]}}
 ```
 
-On Lua errors, invalid input, empty stdin, or unavailable pipe, `exec` still prints JSON and exits with code `1`.
-
-The standard pipe-unavailable error is:
+On Lua errors, invalid input, empty stdin, or an unavailable pipe, `exec` prints an error JSON object and exits with code `1`:
 
 ```json
 {"ok":false,"error":"Darktide pipe is not available. The game is not running, or LuaExec is not loaded."}
 ```
 
-`logs` prints captured log lines to stdout. Diagnostic messages, such as dropped log-line counts, go to stderr.
+Treat `exec` as arbitrary code execution inside the game Lua VM. Execute only trusted Lua and keep snippets focused because they can change live game state.
 
-## Logging Scope
+## Read Logs
 
-`dt-cli logs` is not a full engine console-log tail. It streams logs that `LuaExec` captures from the Lua/mod layer, including:
+Print the latest 10 retained log lines and exit:
 
-- Lua `__print`, `__print_warning`, and `__print_error`.
-- DMF mod logging methods.
-- Crashify output captured by LuaExec.
+```powershell
+& $dtcli logs
+```
 
-It does not guarantee capture of native engine logs or `Application.*` output that bypasses Lua print hooks.
+Choose the historical line count:
 
-## Safety
+```powershell
+& $dtcli logs -n 100
+```
 
-Treat `exec` as arbitrary code execution inside the game Lua VM. Execute only trusted Lua. Keep snippets short and focused because execution happens on the game Lua side and can affect gameplay state.
+Print the latest 10 lines and continue following:
+
+```powershell
+& $dtcli logs -f
+```
+
+Follow only future lines:
+
+```powershell
+& $dtcli logs -n 0 -f
+```
+
+`logs` prints log lines to stdout and diagnostics to stderr. Without `-f`, it exits after the requested history. With `-f`, it continues printing new lines.
+
+`logs` reads Darktide logs available since LuaExec loaded. It does not read earlier lines from an existing log file. If less history is available than requested with `-n`, it prints the available lines.
+
+## Print The Version
+
+```powershell
+& $dtcli version
+```
+
+`version` prints the installed `dt-cli` version and exits.

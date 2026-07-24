@@ -14,6 +14,7 @@ import (
 const requestBufferTooSmall = -2
 
 var runtimeServer = runtimepipe.New()
+var logRuntime nativeLogRuntime
 
 func main() {}
 
@@ -61,6 +62,7 @@ func LuaExecRuntime_Start(errorBuffer *C.char, errorBufferSize C.int) C.int {
 		return fail(errorBuffer, errorBufferSize, err)
 	}
 
+	logRuntime.Start()
 	clearBuffer(errorBuffer, errorBufferSize)
 	return 1
 }

@@ -5,142 +5,105 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
-	"time"
 
 	"dt-cli/internal/clientpipe"
+	"dt-cli/internal/logprotocol"
 
 	"github.com/urfave/cli/v3"
 )
 
-const logsPollInterval = 100 * time.Millisecond
+const defaultLogLines = 10
 
-type logsRequest struct {
-	ID      string `json:"id"`
-	Command string `json:"command"`
-	Session string `json:"session,omitempty"`
-}
-
-type logsResponse struct {
-	ID      string   `json:"id"`
-	OK      bool     `json:"ok"`
-	Session string   `json:"session,omitempty"`
-	Entries []string `json:"entries,omitempty"`
-	Dropped int      `json:"dropped,omitempty"`
-	Error   string   `json:"error,omitempty"`
+type logsOptions struct {
+	lines  int
+	follow bool
 }
 
 func newLogsCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "logs",
-		Usage:     "Stream new Darktide logs.",
-		UsageText: "dt-cli logs",
+		Usage:     "Print recent Darktide logs.",
+		UsageText: "dt-cli logs [-n lines] [-f]",
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:    "lines",
+				Aliases: []string{"n"},
+				Usage:   "Number of historical log lines to print.",
+				Value:   defaultLogLines,
+			},
+			&cli.BoolFlag{
+				Name:    "follow",
+				Aliases: []string{"f"},
+				Usage:   "Continue printing new log lines.",
+			},
+		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			if len(command.Args().Slice()) > 0 {
 				return errors.New("logs does not accept arguments")
 			}
 
-			return runLogs(ctx)
+			options := logsOptions{
+				lines:  command.Int("lines"),
+				follow: command.Bool("follow"),
+			}
+			if options.lines < 0 {
+				return errors.New("lines must not be negative")
+			}
+
+			return runLogs(ctx, options)
 		},
 	}
 }
 
-func runLogs(parentCtx context.Context) error {
-	session, err := startLogsSession(parentCtx)
+func runLogs(ctx context.Context, options logsOptions) error {
+	connectTimeout := defaultTimeout
+	conn, err := clientpipe.DialPipe(ctx, logprotocol.PipeName, &connectTimeout)
 	if err != nil {
-		return err
+		return errors.New("LuaExec log service is unavailable. Verify that Darktide is running and LuaExec is loaded.")
 	}
+	defer conn.Close()
 
-	defer stopLogsSession(session)
+	if err := logprotocol.WriteRequest(conn, logprotocol.Request{
+		Lines:  options.lines,
+		Follow: options.follow,
+	}); err != nil {
+		return fmt.Errorf("write logs request: %w", err)
+	}
 
 	writer := bufio.NewWriter(os.Stdout)
 	defer writer.Flush()
 
 	for {
-		if err := parentCtx.Err(); err != nil {
-			return err
+		kind, payload, err := logprotocol.ReadMessage(conn)
+		if errors.Is(err, io.EOF) {
+			if options.follow {
+				return errors.New("Darktide logs pipe closed while following")
+			}
+			return writer.Flush()
 		}
-
-		response, err := pollLogsSession(parentCtx, session)
 		if err != nil {
-			return err
+			return fmt.Errorf("read logs: %w", err)
 		}
 
-		if response.Dropped > 0 {
-			fmt.Fprintf(os.Stderr, "dt-cli logs: dropped %d log lines\n", response.Dropped)
-		}
-
-		for _, entry := range response.Entries {
-			if _, err := fmt.Fprintln(writer, entry); err != nil {
+		switch kind {
+		case logprotocol.FrameLine:
+			if _, err := writer.Write(payload); err != nil {
 				return err
 			}
+			if err := writer.WriteByte('\n'); err != nil {
+				return err
+			}
+			if err := writer.Flush(); err != nil {
+				return err
+			}
+		case logprotocol.FrameDiagnostic:
+			fmt.Fprintf(os.Stderr, "dt-cli logs: %s\n", payload)
+		case logprotocol.FrameError:
+			return errors.New(string(payload))
+		default:
+			return fmt.Errorf("invalid response from LuaExec log service: unsupported frame type %d", kind)
 		}
-
-		if err := writer.Flush(); err != nil {
-			return err
-		}
-
-		if len(response.Entries) == 0 {
-			time.Sleep(logsPollInterval)
-		}
 	}
-}
-
-func startLogsSession(parentCtx context.Context) (string, error) {
-	request := logsRequest{
-		ID:      newRequestID(),
-		Command: "logs_start",
-	}
-
-	response, err := exchangeLogs(parentCtx, request)
-	if err != nil {
-		return "", err
-	}
-	if response.Session == "" {
-		return "", errors.New("logs_start response did not include a session")
-	}
-
-	return response.Session, nil
-}
-
-func pollLogsSession(parentCtx context.Context, session string) (logsResponse, error) {
-	request := logsRequest{
-		ID:      newRequestID(),
-		Command: "logs_poll",
-		Session: session,
-	}
-
-	return exchangeLogs(parentCtx, request)
-}
-
-func stopLogsSession(session string) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-
-	_, _ = exchangeLogs(ctx, logsRequest{
-		ID:      newRequestID(),
-		Command: "logs_stop",
-		Session: session,
-	})
-}
-
-func exchangeLogs(parentCtx context.Context, request logsRequest) (logsResponse, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, defaultTimeout)
-	defer cancel()
-
-	var response logsResponse
-	if _, err := clientpipe.ExchangeJSON(ctx, request, &response); err != nil {
-		return logsResponse{}, err
-	}
-	if err := clientpipe.ValidateResponseID(response.ID, request.ID); err != nil {
-		return logsResponse{}, err
-	}
-	if !response.OK {
-		if response.Error == "" {
-			response.Error = "logs request failed"
-		}
-		return logsResponse{}, errors.New(response.Error)
-	}
-
-	return response, nil
 }

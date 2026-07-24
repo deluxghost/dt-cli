@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const commandVersion = "1.0.0"
+const commandVersion = "2.0.0"
 
 func newVersionCommand() *cli.Command {
 	return &cli.Command{

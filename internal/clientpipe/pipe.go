@@ -59,7 +59,7 @@ func exchange(ctx context.Context, payload []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	conn, err := dialPipe(ctx, timeout)
+	conn, err := DialPipe(ctx, protocol.PipeName, timeout)
 	if err != nil {
 		return nil, ErrPipeUnavailable
 	}
@@ -83,11 +83,11 @@ func exchange(ctx context.Context, payload []byte) ([]byte, error) {
 	return response, nil
 }
 
-func dialPipe(ctx context.Context, timeout *time.Duration) (pipeConn, error) {
+func DialPipe(ctx context.Context, pipeName string, timeout *time.Duration) (pipeConn, error) {
 	retryUntil := time.Now().Add(pipeDialRetryWindow)
 
 	for {
-		conn, err := winio.DialPipe(protocol.PipeName, timeout)
+		conn, err := winio.DialPipe(pipeName, timeout)
 		if err == nil {
 			return conn, nil
 		}
