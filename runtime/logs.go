@@ -1,6 +1,8 @@
 package main
 
 /*
+#cgo windows CFLAGS: -I${SRCDIR}/../../darktide-internal-utils/include
+#cgo windows LDFLAGS: -L${SRCDIR}/../../darktide-internal-utils/bin/ucrt64/Release -ldtintutils-core
 #include <stdint.h>
 #include "log_capture.h"
 */
