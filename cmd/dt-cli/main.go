@@ -14,9 +14,17 @@ const commandName = "dt-cli"
 func main() {
 	app := &cli.Command{
 		Name:        commandName,
-		Usage:       "Internal Darktide command line tools.",
+		Usage:       "Command-line interface for Darktide.",
 		HideVersion: true,
+		Flags: []cli.Flag{
+			&cli.Uint32Flag{
+				Name:    "pid",
+				Aliases: []string{"p"},
+				Usage:   "Target Darktide process ID.",
+			},
+		},
 		Commands: []*cli.Command{
+			newPsCommand(),
 			newExecCommand(),
 			newLogsCommand(),
 			newVersionCommand(),

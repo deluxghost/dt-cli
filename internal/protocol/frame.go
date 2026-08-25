@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	PipeName      = `\\.\pipe\darktide_lua_exec_v1`
 	MaxFrameBytes = 4 * 1024 * 1024
 )
 

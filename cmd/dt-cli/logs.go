@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"dt-cli/internal/clientpipe"
+	"dt-cli/internal/gameinstance"
 	"dt-cli/internal/logprotocol"
 
 	"github.com/urfave/cli/v3"
@@ -17,6 +18,7 @@ import (
 const defaultLogLines = 10
 
 type logsOptions struct {
+	pid    uint32
 	lines  int
 	follow bool
 }
@@ -24,13 +26,13 @@ type logsOptions struct {
 func newLogsCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "logs",
-		Usage:     "Print recent Darktide logs.",
-		UsageText: "dt-cli logs [-n lines] [-f]",
+		Usage:     "Print logs from a running Darktide process.",
+		UsageText: "dt-cli [--pid PID] logs [-n lines] [-f]",
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "lines",
 				Aliases: []string{"n"},
-				Usage:   "Number of historical log lines to print.",
+				Usage:   "Number of retained log lines to print.",
 				Value:   defaultLogLines,
 			},
 			&cli.BoolFlag{
@@ -51,6 +53,11 @@ func newLogsCommand() *cli.Command {
 			if options.lines < 0 {
 				return errors.New("lines must not be negative")
 			}
+			pid, err := resolvePID(command)
+			if err != nil {
+				return err
+			}
+			options.pid = pid
 
 			return runLogs(ctx, options)
 		},
@@ -59,7 +66,7 @@ func newLogsCommand() *cli.Command {
 
 func runLogs(ctx context.Context, options logsOptions) error {
 	connectTimeout := defaultTimeout
-	conn, err := clientpipe.DialPipe(ctx, logprotocol.PipeName, &connectTimeout)
+	conn, err := clientpipe.DialPipe(ctx, gameinstance.LogsPipeName(options.pid), &connectTimeout)
 	if err != nil {
 		return errors.New("LuaExec log service is unavailable. Verify that Darktide is running and LuaExec is loaded.")
 	}

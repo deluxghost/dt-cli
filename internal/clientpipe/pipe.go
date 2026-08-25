@@ -27,13 +27,13 @@ type pipeConn interface {
 	SetDeadline(time.Time) error
 }
 
-func ExchangeJSON(ctx context.Context, request any, response any) ([]byte, error) {
+func ExchangeJSON(ctx context.Context, pipeName string, request any, response any) ([]byte, error) {
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	responsePayload, err := exchange(ctx, payload)
+	responsePayload, err := exchange(ctx, pipeName, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -53,13 +53,13 @@ func ValidateResponseID(got string, want string) error {
 	return nil
 }
 
-func exchange(ctx context.Context, payload []byte) ([]byte, error) {
+func exchange(ctx context.Context, pipeName string, payload []byte) ([]byte, error) {
 	timeout, deadline, err := pipeDeadline(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := DialPipe(ctx, protocol.PipeName, timeout)
+	conn, err := DialPipe(ctx, pipeName, timeout)
 	if err != nil {
 		return nil, ErrPipeUnavailable
 	}

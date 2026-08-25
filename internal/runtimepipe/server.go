@@ -46,7 +46,7 @@ func New() *Server {
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(pipeName string) error {
 	s.mu.Lock()
 	if s.listener != nil {
 		s.mu.Unlock()
@@ -54,7 +54,7 @@ func (s *Server) Start() error {
 	}
 	s.mu.Unlock()
 
-	listener, err := winio.ListenPipe(protocol.PipeName, &winio.PipeConfig{
+	listener, err := winio.ListenPipe(pipeName, &winio.PipeConfig{
 		InputBufferSize:  PipeBufferSize,
 		OutputBufferSize: PipeBufferSize,
 	})

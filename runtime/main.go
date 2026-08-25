@@ -6,8 +6,10 @@ package main
 import "C"
 
 import (
+	"os"
 	"unsafe"
 
+	"dt-cli/internal/gameinstance"
 	"dt-cli/internal/runtimepipe"
 )
 
@@ -58,11 +60,12 @@ func clearBuffer(buffer *C.char, bufferSize C.int) {
 
 //export LuaExecRuntime_Start
 func LuaExecRuntime_Start(errorBuffer *C.char, errorBufferSize C.int) C.int {
-	if err := runtimeServer.Start(); err != nil {
+	pid := uint32(os.Getpid())
+	if err := runtimeServer.Start(gameinstance.ExecPipeName(pid)); err != nil {
 		return fail(errorBuffer, errorBufferSize, err)
 	}
 
-	logRuntime.Start()
+	logRuntime.Start(gameinstance.LogsPipeName(pid))
 	clearBuffer(errorBuffer, errorBufferSize)
 	return 1
 }

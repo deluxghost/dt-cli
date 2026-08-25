@@ -1,4 +1,4 @@
 interface:
   display_name: "Darktide dt-cli"
-  short_description: "Execute Lua code in Darktide or read and follow logs"
+  short_description: "Execute Darktide Lua code or read and follow logs"
   default_prompt: "Use $darktide-dt-cli to execute Lua code in a running Darktide game or read and follow its logs."

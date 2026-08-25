@@ -1,11 +1,11 @@
 ---
 name: darktide-dt-cli
-description: Execute Lua code in a running Warhammer 40,000: Darktide game or read its logs with the dt-cli tool shipped with LuaExec. Use when the user asks to inspect or change live game state through Lua, retrieve recent logs, or follow new logs in real time.
+description: "Execute Lua code in a running Warhammer 40,000: Darktide game or read its logs with the dt-cli tool shipped with LuaExec. Use when the user asks to inspect or change live game state through Lua, retrieve recent logs, or follow new logs in real time."
 ---
 
 # Darktide dt-cli
 
-`dt-cli` is an external command-line client for the `LuaExec` Darktide mod. It can execute Lua code and read game logs.
+`dt-cli` is the external command-line client shipped with the `LuaExec` Darktide mod. It executes Lua code and reads game logs.
 
 ## Locate The Executable
 
@@ -97,7 +97,29 @@ Follow only future lines:
 
 `logs` prints log lines to stdout and diagnostics to stderr. Without `-f`, it exits after the requested history. With `-f`, it continues printing new lines.
 
-`logs` reads Darktide logs available since LuaExec loaded. It does not read earlier lines from an existing log file. If less history is available than requested with `-n`, it prints the available lines.
+`logs` reads only the history retained by the running Darktide process. It cannot read earlier game sessions or existing log files. If less history is available than requested with `-n`, it prints the available lines.
+
+## Multiple Processes
+
+If more than one Darktide process is available to `dt-cli`, list them with:
+
+```powershell
+& $dtcli ps
+```
+
+The output contains the process ID, uptime, and full executable path:
+
+```text
+PID    UPTIME   PATH
+18432  00:42:17 E:\SteamLibrary\steamapps\common\Warhammer 40,000 DARKTIDE\binaries\Darktide.exe
+```
+
+Select the target process with the global `--pid` or `-p` option before `exec` or `logs`:
+
+```powershell
+& $dtcli --pid 18432 exec 'return 1'
+& $dtcli -p 18432 logs -f
+```
 
 ## Print The Version
 

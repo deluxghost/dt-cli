@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"dt-cli/internal/clientpipe"
+	"dt-cli/internal/gameinstance"
 
 	"github.com/urfave/cli/v3"
 )
@@ -18,6 +19,7 @@ import (
 const defaultTimeout = 5 * time.Second
 
 type execOptions struct {
+	pid      uint32
 	timeout  time.Duration
 	stdin    bool
 	codeArgs []string
@@ -46,8 +48,8 @@ type execErrorResponse struct {
 func newExecCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "exec",
-		Usage:     "Execute Lua code in Darktide.",
-		UsageText: "dt-cli exec [options] <lua code>\n   dt-cli exec --stdin [options]",
+		Usage:     "Execute Lua code in a running Darktide process.",
+		UsageText: "dt-cli [--pid PID] exec [options] <lua code>\n   dt-cli [--pid PID] exec --stdin [options]",
 		Flags: []cli.Flag{
 			&cli.DurationFlag{
 				Name:  "timeout",
@@ -60,7 +62,13 @@ func newExecCommand() *cli.Command {
 			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
+			pid, err := resolvePID(command)
+			if err != nil {
+				return err
+			}
+
 			options := execOptions{
+				pid:      pid,
 				timeout:  command.Duration("timeout"),
 				stdin:    command.Bool("stdin"),
 				codeArgs: command.Args().Slice(),
@@ -87,7 +95,7 @@ func runExec(parentCtx context.Context, options execOptions) error {
 	defer cancel()
 
 	var response execResponse
-	responsePayload, err := clientpipe.ExchangeJSON(ctx, request, &response)
+	responsePayload, err := clientpipe.ExchangeJSON(ctx, gameinstance.ExecPipeName(options.pid), request, &response)
 	if err != nil {
 		return writeExecError(request.ID, err)
 	}

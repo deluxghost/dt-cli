@@ -129,12 +129,12 @@ type nativeLogRuntime struct {
 	captureError string
 }
 
-func (r *nativeLogRuntime) Start() {
+func (r *nativeLogRuntime) Start(pipeName string) {
 	r.once.Do(func() {
 		r.hub = newLogHub()
 		r.captureReady = make(chan struct{})
 
-		listener, err := winio.ListenPipe(logprotocol.PipeName, &winio.PipeConfig{
+		listener, err := winio.ListenPipe(pipeName, &winio.PipeConfig{
 			InputBufferSize:  runtimepipeBufferSize,
 			OutputBufferSize: runtimepipeBufferSize,
 		})

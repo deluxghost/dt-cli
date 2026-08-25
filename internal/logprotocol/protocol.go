@@ -8,8 +8,6 @@ import (
 	"dt-cli/internal/protocol"
 )
 
-const PipeName = `\\.\pipe\darktide_lua_exec_logs_v1`
-
 const (
 	FrameLine       byte = 1
 	FrameDiagnostic byte = 2
