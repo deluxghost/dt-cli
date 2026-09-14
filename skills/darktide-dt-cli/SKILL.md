@@ -37,7 +37,11 @@ Before using game-connected commands:
 - The `LuaExec` mod must be loaded.
 - The current execution environment must be allowed to connect to local named pipes.
 
-If an environment sandbox returns access denied for the named pipe, rerun the same command outside that sandbox or with the required approval. Do not treat sandbox access denial as proof that the game or mod is broken.
+## Sandbox Access To Named Pipes
+
+An agent sandbox can block local named-pipe access even when Darktide is running and LuaExec is loaded. Connection failures can appear as generic "pipe is not available" or "LuaExec log service is unavailable" errors rather than explicit access-denied errors; these messages alone do not establish that LuaExec is missing or broken.
+
+When a pipe connection fails inside a sandbox, request approval to retry the same executable, PID, and command outside the sandbox before attributing the failure to LuaExec. A successful retry with unchanged game/mod state points to a sandbox access restriction. If approval is unavailable or denied, report that connectivity could not be verified outside the sandbox; do not bypass it, restart the game, or reinstall LuaExec to work around it. Success of `version` or `ps` does not prove that pipe access is allowed.
 
 ## Execute Lua
 
